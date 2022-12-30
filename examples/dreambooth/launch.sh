@@ -9,6 +9,7 @@ accelerate launch train_dreambooth.py \
   --instance_data_dir=$INSTANCE_DIR \
   --output_dir=$OUTPUT_DIR \
   --class_data_dir=$CLASS_DIR \
+  --instance_prompt="a photo of sbjI person" \
   --revision="fp16" \
   --with_prior_preservation --prior_loss_weight=1.0 \
   --seed=3434554 \
