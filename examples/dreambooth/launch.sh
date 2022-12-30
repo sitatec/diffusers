@@ -1,10 +1,12 @@
 export MODEL_NAME="runwayml/stable-diffusion-v1-5"
+export INSTANCE_DIR="/workspace/training_data/subject1"
 export OUTPUT_DIR="/workspace/models/subject1"
 export CLASS_DIR="/workspace/regularisations"
 
 accelerate launch train_dreambooth.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --pretrained_vae_name_or_path="stabilityai/sd-vae-ft-mse" \
+  --instance_data_dir=$INSTANCE_DIR \
   --output_dir=$OUTPUT_DIR \
   --class_data_dir=$CLASS_DIR \
   --revision="fp16" \
