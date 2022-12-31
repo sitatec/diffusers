@@ -4,3 +4,4 @@ transformers>=4.21.0
 ftfy
 tensorboard
 modelcards
+bitsandbytes
