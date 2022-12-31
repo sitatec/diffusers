@@ -24,7 +24,7 @@ accelerate launch train_dreambooth.py \
   --lr_warmup_steps=0 \
   --num_class_images=50 \
   --sample_batch_size=4 \
-  --max_train_steps=2000 \
+  --max_train_steps=4000 \
   --save_interval=400 \
   --save_sample_prompt="a photo of sbjI" \
   --class_prompt="a photo of man" \
