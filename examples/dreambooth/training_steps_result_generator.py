@@ -23,7 +23,7 @@ generator = torch.Generator(device="cuda").manual_seed(854)
 prompt = "Portrait of a sbjI, cybernetic, cyberpunk, detailed gorgeous face, vaporwave aesthetic, synthwave , digital painting, artstation, concept art, smooth, sharp focus, illustration, octane render, 8k, art by artgerm and greg rutkowski and alphonse mucha"
 
 for model in models:
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
+    pipe = StableDiffusionPipeline.from_pretrained(model, torch_dtype=torch.float16).to("cuda")
     images.append(pipe(prompt, num_inference_steps=50, guidance_scale=7.5, generator=generator).images[0])
 
 gc.collect()
