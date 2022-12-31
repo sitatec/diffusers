@@ -6,6 +6,7 @@ import time
 
 
 models = [
+    "/workspace/models/subject1/400",
     "/workspace/models/subject1/800",
     "/workspace/models/subject1/1200",
     "/workspace/models/subject1/1600",
@@ -14,6 +15,7 @@ models = [
     "/workspace/models/subject1/2800",
     "/workspace/models/subject1/3200",
     "/workspace/models/subject1/3600",
+    "/workspace/models/subject1/4000",
 ]
 
 images = []
