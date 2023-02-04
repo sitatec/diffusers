@@ -7,3 +7,4 @@ torchvision
 ftfy
 tensorboard
 modelcards
+bitsandbytes
