@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2022 HuggingFace Inc.
+# Copyright 2023 HuggingFace Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,11 +17,10 @@ import gc
 import unittest
 
 import torch
+from parameterized import parameterized
 
 from diffusers import AutoencoderKL
-from diffusers.modeling_utils import ModelMixin
 from diffusers.utils import floats_tensor, load_hf_numpy, require_torch_gpu, slow, torch_all_close, torch_device
-from parameterized import parameterized
 
 from ..test_modeling_common import ModelTesterMixin
 
@@ -68,6 +67,47 @@ class AutoencoderKLTests(ModelTesterMixin, unittest.TestCase):
     def test_training(self):
         pass
 
+    @unittest.skipIf(torch_device == "mps", "Gradient checkpointing skipped on MPS")
+    def test_gradient_checkpointing(self):
+        # enable deterministic behavior for gradient checkpointing
+        init_dict, inputs_dict = self.prepare_init_args_and_inputs_for_common()
+        model = self.model_class(**init_dict)
+        model.to(torch_device)
+
+        assert not model.is_gradient_checkpointing and model.training
+
+        out = model(**inputs_dict).sample
+        # run the backwards pass on the model. For backwards pass, for simplicity purpose,
+        # we won't calculate the loss and rather backprop on out.sum()
+        model.zero_grad()
+
+        labels = torch.randn_like(out)
+        loss = (out - labels).mean()
+        loss.backward()
+
+        # re-instantiate the model now enabling gradient checkpointing
+        model_2 = self.model_class(**init_dict)
+        # clone model
+        model_2.load_state_dict(model.state_dict())
+        model_2.to(torch_device)
+        model_2.enable_gradient_checkpointing()
+
+        assert model_2.is_gradient_checkpointing and model_2.training
+
+        out_2 = model_2(**inputs_dict).sample
+        # run the backwards pass on the model. For backwards pass, for simplicity purpose,
+        # we won't calculate the loss and rather backprop on out.sum()
+        model_2.zero_grad()
+        loss_2 = (out_2 - labels).mean()
+        loss_2.backward()
+
+        # compare the output and parameters gradients
+        self.assertTrue((loss - loss_2).abs() < 1e-5)
+        named_params = dict(model.named_parameters())
+        named_params_2 = dict(model_2.named_parameters())
+        for name, param in named_params.items():
+            self.assertTrue(torch_all_close(param.grad.data, named_params_2[name].grad.data, atol=5e-5))
+
     def test_from_pretrained_hub(self):
         model, loading_info = AutoencoderKL.from_pretrained("fusing/autoencoder-kl-dummy", output_loading_info=True)
         self.assertIsNotNone(model)
@@ -83,12 +123,7 @@ class AutoencoderKLTests(ModelTesterMixin, unittest.TestCase):
         model = model.to(torch_device)
         model.eval()
 
-        # One-time warmup pass (see #372)
-        if torch_device == "mps" and isinstance(model, ModelMixin):
-            image = torch.randn(1, model.config.in_channels, model.config.sample_size, model.config.sample_size)
-            image = image.to(torch_device)
-            with torch.no_grad():
-                _ = model(image, sample_posterior=True).sample
+        if torch_device == "mps":
             generator = torch.manual_seed(0)
         else:
             generator = torch.Generator(device=torch_device).manual_seed(0)
@@ -165,17 +200,19 @@ class AutoencoderKLIntegrationTests(unittest.TestCase):
         return model
 
     def get_generator(self, seed=0):
+        if torch_device == "mps":
+            return torch.manual_seed(seed)
         return torch.Generator(device=torch_device).manual_seed(seed)
 
     @parameterized.expand(
         [
             # fmt: off
-            [33, [-0.1603, 0.9878, -0.0495, -0.0790, -0.2709, 0.8375, -0.2060, -0.0824]],
-            [47, [-0.2376, 0.1168, 0.1332, -0.4840, -0.2508, -0.0791, -0.0493, -0.4089]],
+            [33, [-0.1603, 0.9878, -0.0495, -0.0790, -0.2709, 0.8375, -0.2060, -0.0824], [-0.2395, 0.0098, 0.0102, -0.0709, -0.2840, -0.0274, -0.0718, -0.1824]],
+            [47, [-0.2376, 0.1168, 0.1332, -0.4840, -0.2508, -0.0791, -0.0493, -0.4089], [0.0350, 0.0847, 0.0467, 0.0344, -0.0842, -0.0547, -0.0633, -0.1131]],
             # fmt: on
         ]
     )
-    def test_stable_diffusion(self, seed, expected_slice):
+    def test_stable_diffusion(self, seed, expected_slice, expected_slice_mps):
         model = self.get_sd_vae_model()
         image = self.get_sd_image(seed)
         generator = self.get_generator(seed)
@@ -186,7 +223,7 @@ class AutoencoderKLIntegrationTests(unittest.TestCase):
         assert sample.shape == image.shape
 
         output_slice = sample[-1, -2:, -2:, :2].flatten().float().cpu()
-        expected_output_slice = torch.tensor(expected_slice)
+        expected_output_slice = torch.tensor(expected_slice_mps if torch_device == "mps" else expected_slice)
 
         assert torch_all_close(output_slice, expected_output_slice, atol=1e-3)
 
@@ -217,12 +254,12 @@ class AutoencoderKLIntegrationTests(unittest.TestCase):
     @parameterized.expand(
         [
             # fmt: off
-            [33, [-0.1609, 0.9866, -0.0487, -0.0777, -0.2716, 0.8368, -0.2055, -0.0814]],
-            [47, [-0.2377, 0.1147, 0.1333, -0.4841, -0.2506, -0.0805, -0.0491, -0.4085]],
+            [33, [-0.1609, 0.9866, -0.0487, -0.0777, -0.2716, 0.8368, -0.2055, -0.0814], [-0.2395, 0.0098, 0.0102, -0.0709, -0.2840, -0.0274, -0.0718, -0.1824]],
+            [47, [-0.2377, 0.1147, 0.1333, -0.4841, -0.2506, -0.0805, -0.0491, -0.4085], [0.0350, 0.0847, 0.0467, 0.0344, -0.0842, -0.0547, -0.0633, -0.1131]],
             # fmt: on
         ]
     )
-    def test_stable_diffusion_mode(self, seed, expected_slice):
+    def test_stable_diffusion_mode(self, seed, expected_slice, expected_slice_mps):
         model = self.get_sd_vae_model()
         image = self.get_sd_image(seed)
 
@@ -232,7 +269,7 @@ class AutoencoderKLIntegrationTests(unittest.TestCase):
         assert sample.shape == image.shape
 
         output_slice = sample[-1, -2:, -2:, :2].flatten().float().cpu()
-        expected_output_slice = torch.tensor(expected_slice)
+        expected_output_slice = torch.tensor(expected_slice_mps if torch_device == "mps" else expected_slice)
 
         assert torch_all_close(output_slice, expected_output_slice, atol=1e-3)
 
@@ -267,6 +304,7 @@ class AutoencoderKLIntegrationTests(unittest.TestCase):
             # fmt: on
         ]
     )
+    @require_torch_gpu
     def test_stable_diffusion_decode_fp16(self, seed, expected_slice):
         model = self.get_sd_vae_model(fp16=True)
         encoding = self.get_sd_image(seed, shape=(3, 4, 64, 64), fp16=True)
@@ -303,4 +341,5 @@ class AutoencoderKLIntegrationTests(unittest.TestCase):
         output_slice = sample[0, -1, -3:, -3:].flatten().cpu()
         expected_output_slice = torch.tensor(expected_slice)
 
-        assert torch_all_close(output_slice, expected_output_slice, atol=1e-3)
+        tolerance = 1e-3 if torch_device != "mps" else 1e-2
+        assert torch_all_close(output_slice, expected_output_slice, atol=tolerance)

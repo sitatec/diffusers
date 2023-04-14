@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2022 HuggingFace Inc.
+# Copyright 2023 HuggingFace Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,8 +63,12 @@ class UNet1DModelTests(ModelTesterMixin, unittest.TestCase):
         super().test_outputs_equivalence()
 
     @unittest.skipIf(torch_device == "mps", "mish op not supported in MPS")
-    def test_from_pretrained_save_pretrained(self):
-        super().test_from_pretrained_save_pretrained()
+    def test_from_save_pretrained(self):
+        super().test_from_save_pretrained()
+
+    @unittest.skipIf(torch_device == "mps", "mish op not supported in MPS")
+    def test_from_save_pretrained_variant(self):
+        super().test_from_save_pretrained_variant()
 
     @unittest.skipIf(torch_device == "mps", "mish op not supported in MPS")
     def test_model_from_pretrained(self):
@@ -183,8 +187,12 @@ class UNetRLModelTests(ModelTesterMixin, unittest.TestCase):
         super().test_outputs_equivalence()
 
     @unittest.skipIf(torch_device == "mps", "mish op not supported in MPS")
-    def test_from_pretrained_save_pretrained(self):
-        super().test_from_pretrained_save_pretrained()
+    def test_from_save_pretrained(self):
+        super().test_from_save_pretrained()
+
+    @unittest.skipIf(torch_device == "mps", "mish op not supported in MPS")
+    def test_from_save_pretrained_variant(self):
+        super().test_from_save_pretrained_variant()
 
     @unittest.skipIf(torch_device == "mps", "mish op not supported in MPS")
     def test_model_from_pretrained(self):

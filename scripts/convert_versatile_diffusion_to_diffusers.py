@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2022 The HuggingFace Inc. team.
+# Copyright 2023 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,12 @@ import argparse
 from argparse import Namespace
 
 import torch
+from transformers import (
+    CLIPImageProcessor,
+    CLIPTextModelWithProjection,
+    CLIPTokenizer,
+    CLIPVisionModelWithProjection,
+)
 
 from diffusers import (
     AutoencoderKL,
@@ -31,12 +37,6 @@ from diffusers import (
     VersatileDiffusionPipeline,
 )
 from diffusers.pipelines.versatile_diffusion.modeling_text_unet import UNetFlatConditionModel
-from transformers import (
-    CLIPFeatureExtractor,
-    CLIPTextModelWithProjection,
-    CLIPTokenizer,
-    CLIPVisionModelWithProjection,
-)
 
 
 SCHEDULER_CONFIG = Namespace(
@@ -692,7 +692,7 @@ if __name__ == "__main__":
         "--scheduler_type",
         default="pndm",
         type=str,
-        help="Type of scheduler to use. Should be one of ['pndm', 'lms', 'ddim', 'euler', 'euler-ancest', 'dpm']",
+        help="Type of scheduler to use. Should be one of ['pndm', 'lms', 'ddim', 'euler', 'euler-ancestral', 'dpm']",
     )
     parser.add_argument(
         "--extract_ema",
@@ -774,7 +774,7 @@ if __name__ == "__main__":
         vae.load_state_dict(converted_vae_checkpoint)
 
     tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-    image_feature_extractor = CLIPFeatureExtractor.from_pretrained("openai/clip-vit-large-patch14")
+    image_feature_extractor = CLIPImageProcessor.from_pretrained("openai/clip-vit-large-patch14")
     text_encoder = CLIPTextModelWithProjection.from_pretrained("openai/clip-vit-large-patch14")
     image_encoder = CLIPVisionModelWithProjection.from_pretrained("openai/clip-vit-large-patch14")
 

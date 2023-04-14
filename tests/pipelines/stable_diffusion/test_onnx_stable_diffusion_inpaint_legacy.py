@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2022 HuggingFace Inc.
+# Copyright 2023 HuggingFace Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ from diffusers.utils.testing_utils import (
     is_onnx_available,
     load_image,
     load_numpy,
+    nightly,
     require_onnxruntime,
     require_torch_gpu,
-    slow,
 )
 
 
@@ -32,7 +32,7 @@ if is_onnx_available():
     import onnxruntime as ort
 
 
-@slow
+@nightly
 @require_onnxruntime
 @require_torch_gpu
 class StableDiffusionOnnxInpaintLegacyPipelineIntegrationTests(unittest.TestCase):
@@ -70,6 +70,8 @@ class StableDiffusionOnnxInpaintLegacyPipelineIntegrationTests(unittest.TestCase
         pipe = OnnxStableDiffusionInpaintPipelineLegacy.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
             revision="onnx",
+            safety_checker=None,
+            feature_extractor=None,
             provider=self.gpu_provider,
             sess_options=self.gpu_options,
         )
@@ -80,7 +82,7 @@ class StableDiffusionOnnxInpaintLegacyPipelineIntegrationTests(unittest.TestCase
         generator = np.random.RandomState(0)
         output = pipe(
             prompt=prompt,
-            init_image=init_image,
+            image=init_image,
             mask_image=mask_image,
             strength=0.75,
             guidance_scale=7.5,

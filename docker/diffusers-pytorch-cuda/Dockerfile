@@ -11,6 +11,7 @@ RUN apt update && \
                    git-lfs \
                    curl \
                    ca-certificates \
+                   libsndfile1-dev \
                    python3.8 \
                    python3-pip \
                    python3.8-venv && \
@@ -26,13 +27,13 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
         torch \
         torchvision \
         torchaudio \
-        --extra-index-url https://download.pytorch.org/whl/cu117 && \
     python3 -m pip install --no-cache-dir \
         accelerate \
         datasets \
         hf-doc-builder \
         huggingface-hub \
-        modelcards \
+        Jinja2 \
+        librosa \
         numpy \
         scipy \
         tensorboard \

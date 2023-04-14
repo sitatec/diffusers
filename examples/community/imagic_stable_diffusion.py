@@ -7,22 +7,22 @@ import warnings
 from typing import List, Optional, Union
 
 import numpy as np
+import PIL
 import torch
 import torch.nn.functional as F
-
-import PIL
 from accelerate import Accelerator
-from diffusers.models import AutoencoderKL, UNet2DConditionModel
-from diffusers.pipeline_utils import DiffusionPipeline
-from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
-from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
-from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
-from diffusers.utils import logging
 
 # TODO: remove and import from diffusers.utils when the new version of diffusers is released
 from packaging import version
 from tqdm.auto import tqdm
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
+
+from diffusers import DiffusionPipeline
+from diffusers.models import AutoencoderKL, UNet2DConditionModel
+from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
+from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
+from diffusers.utils import logging
 
 
 if version.parse(version.parse(PIL.__version__).base_version) >= version.parse("9.1.0"):
@@ -80,7 +80,7 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
         safety_checker ([`StableDiffusionSafetyChecker`]):
             Classification module that estimates whether generated images could be considered offsensive or harmful.
             Please, refer to the [model card](https://huggingface.co/CompVis/stable-diffusion-v1-4) for details.
-        feature_extractor ([`CLIPFeatureExtractor`]):
+        feature_extractor ([`CLIPImageProcessor`]):
             Model that extracts features from generated images to be used as inputs for the `safety_checker`.
     """
 
@@ -92,7 +92,7 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
         unet: UNet2DConditionModel,
         scheduler: Union[DDIMScheduler, PNDMScheduler, LMSDiscreteScheduler],
         safety_checker: StableDiffusionSafetyChecker,
-        feature_extractor: CLIPFeatureExtractor,
+        feature_extractor: CLIPImageProcessor,
     ):
         super().__init__()
         self.register_modules(
@@ -133,7 +133,7 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
     def train(
         self,
         prompt: Union[str, List[str]],
-        init_image: Union[torch.FloatTensor, PIL.Image.Image],
+        image: Union[torch.FloatTensor, PIL.Image.Image],
         height: Optional[int] = 512,
         width: Optional[int] = 512,
         generator: Optional[torch.Generator] = None,
@@ -225,7 +225,7 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
             prompt,
             padding="max_length",
             max_length=self.tokenizer.model_max_length,
-            truncaton=True,
+            truncation=True,
             return_tensors="pt",
         )
         text_embeddings = torch.nn.Parameter(
@@ -241,14 +241,14 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
             lr=embedding_learning_rate,
         )
 
-        if isinstance(init_image, PIL.Image.Image):
-            init_image = preprocess(init_image)
+        if isinstance(image, PIL.Image.Image):
+            image = preprocess(image)
 
         latents_dtype = text_embeddings.dtype
-        init_image = init_image.to(device=self.device, dtype=latents_dtype)
-        init_latent_image_dist = self.vae.encode(init_image).latent_dist
-        init_image_latents = init_latent_image_dist.sample(generator=generator)
-        init_image_latents = 0.18215 * init_image_latents
+        image = image.to(device=self.device, dtype=latents_dtype)
+        init_latent_image_dist = self.vae.encode(image).latent_dist
+        image_latents = init_latent_image_dist.sample(generator=generator)
+        image_latents = 0.18215 * image_latents
 
         progress_bar = tqdm(range(text_embedding_optimization_steps), disable=not accelerator.is_local_main_process)
         progress_bar.set_description("Steps")
@@ -259,12 +259,12 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
         for _ in range(text_embedding_optimization_steps):
             with accelerator.accumulate(text_embeddings):
                 # Sample noise that we'll add to the latents
-                noise = torch.randn(init_image_latents.shape).to(init_image_latents.device)
-                timesteps = torch.randint(1000, (1,), device=init_image_latents.device)
+                noise = torch.randn(image_latents.shape).to(image_latents.device)
+                timesteps = torch.randint(1000, (1,), device=image_latents.device)
 
                 # Add noise to the latents according to the noise magnitude at each timestep
                 # (this is the forward diffusion process)
-                noisy_latents = self.scheduler.add_noise(init_image_latents, noise, timesteps)
+                noisy_latents = self.scheduler.add_noise(image_latents, noise, timesteps)
 
                 # Predict the noise residual
                 noise_pred = self.unet(noisy_latents, timesteps, text_embeddings).sample
@@ -301,12 +301,12 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
         for _ in range(model_fine_tuning_optimization_steps):
             with accelerator.accumulate(self.unet.parameters()):
                 # Sample noise that we'll add to the latents
-                noise = torch.randn(init_image_latents.shape).to(init_image_latents.device)
-                timesteps = torch.randint(1000, (1,), device=init_image_latents.device)
+                noise = torch.randn(image_latents.shape).to(image_latents.device)
+                timesteps = torch.randint(1000, (1,), device=image_latents.device)
 
                 # Add noise to the latents according to the noise magnitude at each timestep
                 # (this is the forward diffusion process)
-                noisy_latents = self.scheduler.add_noise(init_image_latents, noise, timesteps)
+                noisy_latents = self.scheduler.add_noise(image_latents, noise, timesteps)
 
                 # Predict the noise residual
                 noise_pred = self.unet(noisy_latents, timesteps, text_embeddings).sample
@@ -342,7 +342,6 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
         return_dict: bool = True,
         guidance_scale: float = 7.5,
         eta: float = 0.0,
-        **kwargs,
     ):
         r"""
         Function invoked when calling the pipeline for generation.
@@ -475,7 +474,7 @@ class ImagicStableDiffusionPipeline(DiffusionPipeline):
 
         image = (image / 2 + 0.5).clamp(0, 1)
 
-        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
+        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         image = image.cpu().permute(0, 2, 3, 1).float().numpy()
 
         if self.safety_checker is not None:
