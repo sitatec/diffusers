@@ -1,10 +1,15 @@
 export MODEL_NAME="runwayml/stable-diffusion-v1-5"
-export OUTPUT_DIR="../../../models/alvan_shivam"
+export INSTANCE_DIR="/workspace/training_data/subject1"
+export OUTPUT_DIR="/workspace/models/subject1"
+export CLASS_DIR="/workspace/regularisations/man"
 
 accelerate launch train_dreambooth.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --pretrained_vae_name_or_path="stabilityai/sd-vae-ft-mse" \
+  --instance_data_dir=$INSTANCE_DIR \
   --output_dir=$OUTPUT_DIR \
+  --class_data_dir=$CLASS_DIR \
+  --instance_prompt="a photo of sbjI" \
   --revision="fp16" \
   --with_prior_preservation --prior_loss_weight=1.0 \
   --seed=3434554 \
@@ -19,7 +24,7 @@ accelerate launch train_dreambooth.py \
   --lr_warmup_steps=0 \
   --num_class_images=50 \
   --sample_batch_size=4 \
-  --max_train_steps=800 \
+  --max_train_steps=4000 \
   --save_interval=400 \
-  --save_sample_prompt="photo of zwx dog" \
-  --concepts_list="concepts_list.json"
+  --save_sample_prompt="a photo of sbjI" \
+  --class_prompt="a photo of man" \
