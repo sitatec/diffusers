@@ -1,4 +1,4 @@
-export MODEL_NAME="runwayml/stable-diffusion-v1-5"
+export MODEL_NAME="duongna/stable-diffusion-v1-4-flax"
 export INSTANCE_DIR="~/training_data/subject1"
 export OUTPUT_DIR="~/models/subject1"
 
