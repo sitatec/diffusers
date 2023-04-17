@@ -6,7 +6,6 @@ python3 train_dreambooth_flax.py \
   --pretrained_model_name_or_path=$MODEL_NAME  \
   --pretrained_vae_name_or_path="stabilityai/sd-vae-ft-mse" \
   --train_text_encoder \
-  --revision="fp16" \
   --instance_data_dir=$INSTANCE_DIR \
   --class_data_dir=$CLASS_DIR \
   --output_dir=$OUTPUT_DIR \
