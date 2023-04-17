@@ -15,9 +15,4 @@ python3 train_dreambooth_flax.py \
   --train_batch_size=1 \
   --learning_rate=1e-6 \
   --sample_batch_size=4 \
-  --max_train_steps=4000 \
-  --save_interval=400 \
-  --save_sample_prompt="a photo of sbjI" \
-  --lr_scheduler="constant" \
-  --lr_warmup_steps=0
-  
+  --max_train_steps=4000
