@@ -1,6 +1,6 @@
 export MODEL_NAME="duongna/stable-diffusion-v1-4-flax"
-export INSTANCE_DIR="~/training_data/subject1"
-export OUTPUT_DIR="~/models/subject1"
+export INSTANCE_DIR="/home/sita/training_data/subject1"
+export OUTPUT_DIR="/home/sita/models/subject1"
 
 python3 train_dreambooth_flax.py \
   --pretrained_model_name_or_path=$MODEL_NAME  \
